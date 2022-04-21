@@ -15,8 +15,8 @@ class QNetwork(nn.Module):
         print("input dim: ", input_dim)
         self.fc1 = nn.Linear(input_dim, 128) 
         self.fc2 = nn.Linear(128, 64)
-        self.fc3 = nn.Linear(64, 16)
-        self.fc4 = nn.Linear(16, 8)
+        self.fc3 = nn.Linear(64, 32)
+        self.fc4 = nn.Linear(32, 15)
 
         self.bn1d = nn.BatchNorm1d(128)
         self.softmax = nn.Softmax()
@@ -27,7 +27,7 @@ class QNetwork(nn.Module):
         #--------- YOUR CODE HERE --------------
         x = torch.Tensor(x).to(device)
         # x = torch.from_numpy(x).to(device)
-        x = F.relu(self.bn1d(self.fc1(x)))
+        x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
         x = F.relu(self.fc3(x))
         x = self.fc4(x)
@@ -46,7 +46,7 @@ class QNetwork(nn.Module):
         #--------- YOUR CODE HERE --------------
         # self.env.step(self.q_network.action_discrete_to_continuous(discrete_action))
         # print("discrete_action: ", discrete_action)
-        step = 0.3
+        step = 0.1
         dict_ = {
             0: np.array([-step, 0]),
             1: np.array([step, 0]),
@@ -55,7 +55,17 @@ class QNetwork(nn.Module):
             4: np.array([step, step]),
             5: np.array([step, -step]),
             6: np.array([-step, step]),
+
             7: np.array([0, 0]),
+
+            8: np.array([-2*step, 0]),
+            9: np.array([2*step, 0]),
+            10: np.array([0, -2*step]),
+            11: np.array([0, 2*step]),
+            12: np.array([2*step, 2*step]),
+            13: np.array([2*step, -2*step]),
+            14: np.array([-2*step, 2*step]),
+            
             }
         #---------------------------------------
         continous_action = dict_[discrete_action]

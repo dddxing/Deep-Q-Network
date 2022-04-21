@@ -89,6 +89,10 @@ class TrainDQN:
         # target_network.load_state_dict(main_network.state_dict())
         # self.q_network.eval()
 
+        eps_end = 0.05
+        eps_start = 0.9
+        eps_decay = 200
+
         gamma = 0.9
         num_episodes = 800
         batch_size = 32
@@ -106,9 +110,11 @@ class TrainDQN:
         
             for step in range(1, num_steps+1):
                 # With probability ε, at = random
+
+                epsilon = eps_end + (eps_start - eps_end) * np.exp(-1. * step / eps_decay)
                 if np.random.random() < epsilon:
                     # print("Exploring..")
-                    discrete_action = np.random.randint(0, 7)
+                    discrete_action = np.random.randint(0, 14)
 
                 # otherwise at = maxaQA(s, a)
                 else:
@@ -120,9 +126,6 @@ class TrainDQN:
                 
                 # Execute action
                 next_state, reward, done, _ = self.env.step(continuous_action)
-
-                if done or next_state is None:
-                    break
 
                 # update reward 
                 episode_reward += reward
@@ -141,11 +144,13 @@ class TrainDQN:
                     rewards = torch.FloatTensor(rewards)
                     next_states = torch.FloatTensor(next_states)
                     dones = torch.FloatTensor(dones)
-                    
+                    with torch.no_grad():
                     # current_q
-                    current_q_values = self.q_network(states, self.device).gather(1, actions.view(-1, 1).type(torch.int64)).squeeze()
-                    max_next_q_values, _ = torch.max(self.t_network(next_states, self.device), dim=1)
-                    expected_q_values = rewards + (gamma * max_next_q_values)
+                        max_next_q_values, _ = torch.max(self.t_network(next_states, self.device).detach(), dim=1)
+                        expected_q_values = rewards + (gamma * max_next_q_values * (1 - dones))
+                        
+
+                    current_q_values = self.q_network(states, self.device).gather(1, actions.view(-1, 1).type(torch.int64))
                     # print("current_q_values size ", current_q_values.size())
                     # print("expected_q_values size ", expected_q_values.size())
                     loss = loss_fcn(current_q_values, expected_q_values)
@@ -155,8 +160,14 @@ class TrainDQN:
                     
                     optimizer.step()
 
+                    if done:
+                        break
+
                 if step % update_steps == 0:
                     self.t_network.load_state_dict(self.q_network.state_dict())
+
+                if next_state is None:
+                    break
 
                 state = next_state
 
