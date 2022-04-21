@@ -33,6 +33,9 @@ def time_limit(seconds):
 #---------- End of timing utils -----------#
 
 reward_collection = []
+loss_collection = []
+eps_collection = []
+loss_collection = []
 
 class TrainDQN:
 
@@ -78,7 +81,7 @@ class TrainDQN:
         #--------- YOUR CODE HERE --------------
         
         
-        lr = 0.001#args.learning_rate
+        lr = 0.0001 #args.learning_rate0.007
         optimizer = optim.Adam(self.q_network.parameters(), lr=lr)
         
         loss_fcn = nn.MSELoss()
@@ -86,36 +89,37 @@ class TrainDQN:
         replay_buffer = ReplayBuffer(N)
 
 
-        # target_network.load_state_dict(main_network.state_dict())
-        # self.q_network.eval()
-
-        eps_end = 0.05
-        eps_start = 0.9
-        eps_decay = 200
+        # self.t_network.load_state_dict(self.q_network.state_dict())
+        # self.t_network.eval()        
 
         gamma = 0.9
-        num_episodes = 800
-        batch_size = 32
-        epsilon = 0.1
-        num_steps = 200
-        update_steps = 10
-        self.q_network.eval()
-        self.t_network.eval()
+        num_episodes = 5000
+        batch_size = 16
+        epsilon = 0.005
+        num_steps = 400
+        update_steps = 5
+
+        global_steps = 0
+
         for i_episode in range(1, num_episodes+1):
             
-            state  = self.env.reset()
-            # state = self.env.arm.get_state()
+            state  = self.env.reset() 
+            
             episode_reward = 0
             # print("episode, ", i_episode)
-        
+            
+            
             for step in range(1, num_steps+1):
                 # With probability ε, at = random
 
-                epsilon = eps_end + (eps_start - eps_end) * np.exp(-1. * step / eps_decay)
+                # epsilon = 1 - (eps_start * eps_decay)
+                
+
                 if np.random.random() < epsilon:
                     # print("Exploring..")
-                    discrete_action = np.random.randint(0, 14)
-
+                    discrete_action = np.random.randint(0, 15)
+                    
+                
                 # otherwise at = maxaQA(s, a)
                 else:
 
@@ -126,17 +130,22 @@ class TrainDQN:
                 
                 # Execute action
                 next_state, reward, done, _ = self.env.step(continuous_action)
-
+                
+                #if done is terminal: break 
+                if done or next_state is None:
+                    break                
+                
                 # update reward 
                 episode_reward += reward
-                reward_collection.append(episode_reward)
+                
                 # store transition into replay memory
                 replay_buffer.put((state, discrete_action, reward, next_state, done)) # not sure if action should be disc or cont?
-            
+                
+                # train network 
                 # accumulate some steps to a batch
                 if step > batch_size:
 
-                    # train network
+                    # batches of stuff (state, action, reward, next_state, done_mark)
                     states, actions, rewards, next_states, dones = replay_buffer.sample(batch_size)
 
                     states = torch.FloatTensor(states)
@@ -144,34 +153,32 @@ class TrainDQN:
                     rewards = torch.FloatTensor(rewards)
                     next_states = torch.FloatTensor(next_states)
                     dones = torch.FloatTensor(dones)
-                    with torch.no_grad():
-                    # current_q
-                        max_next_q_values, _ = torch.max(self.t_network(next_states, self.device).detach(), dim=1)
-                        expected_q_values = rewards + (gamma * max_next_q_values * (1 - dones))
-                        
 
-                    current_q_values = self.q_network(states, self.device).gather(1, actions.view(-1, 1).type(torch.int64))
-                    # print("current_q_values size ", current_q_values.size())
-                    # print("expected_q_values size ", expected_q_values.size())
-                    loss = loss_fcn(current_q_values, expected_q_values)
+
+                    # current_q
+                    max_next_q_values = self.t_network(next_states, self.device).max(1)[0].detach()
+                    expected_q_values = rewards.to(self.device) + (gamma * max_next_q_values * (1 - dones.to(self.device)))
+
+                    current_q_values = self.q_network(states, self.device).gather(1, actions.view(-1, 1).type(torch.int64).to(self.device)).squeeze()
+
+                    loss = loss_fcn(current_q_values.squeeze(), expected_q_values.squeeze())
                     
                     optimizer.zero_grad()
                     loss.backward()
-                    
                     optimizer.step()
 
-                    if done:
-                        break
 
                 if step % update_steps == 0:
+                    # print("set 2 nn equal")
                     self.t_network.load_state_dict(self.q_network.state_dict())
+                
+                state = next_state    
 
-                if next_state is None:
-                    break
+            reward_collection.append(episode_reward)
+            eps_collection.append(epsilon)
+            global_steps += step
 
-                state = next_state
-
-            print(f"episode={i_episode}, global_step: {step*(i_episode)}, episode_reward: {episode_reward} ")
+            print(f"episode: {i_episode}, global_steps: {global_steps}, episode_reward: {episode_reward}, eps: {round(epsilon, 5)} ")
             self.save_model(i_episode, episode_reward, args)
             #---------------------------------------        
 
@@ -197,9 +204,13 @@ if __name__ == "__main__":
     except TimeoutException as e:
         print("You ran out of time and your training is stopped!")
 
-    mv_avg = moving_average(reward_collection, 10)
+    mv_avg = moving_average(reward_collection, 20)
 
-    plt.plot(reward_collection, "r--")
-    plt.plot(mv_avg, "b-")
+    plt.plot(reward_collection, "r--", label="episode rewards")
+    plt.plot(mv_avg, "b-", label="moving_average")
+    plt.plot(eps_collection, label="epison")
+    plt.legend()
+    plt.xlabel("Episode")
+    plt.ylabel("Reward")
     plt.show()
     
