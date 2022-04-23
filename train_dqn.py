@@ -87,24 +87,28 @@ class TrainDQN:
         loss_fcn = nn.MSELoss()
         N = 10000
         replay_buffer = ReplayBuffer(N)
-
+        
 
         # self.t_network.load_state_dict(self.q_network.state_dict())
         # self.t_network.eval()        
 
         gamma = 0.9
-        num_episodes = 5000
-        batch_size = 16
-        epsilon = 0.005
-        num_steps = 400
+        num_episodes = 10000
+        batch_size = 128
+        epsilon = 0.015
+        num_steps = 500
         update_steps = 5
+
+        eps_start = 1
+        eps_end = 0.05
+        eps_decay = 1000
 
         global_steps = 0
 
         for i_episode in range(1, num_episodes+1):
             
             state  = self.env.reset() 
-            
+            episode_loss = 0
             episode_reward = 0
             # print("episode, ", i_episode)
             
@@ -112,12 +116,12 @@ class TrainDQN:
             for step in range(1, num_steps+1):
                 # With probability ε, at = random
 
-                # epsilon = 1 - (eps_start * eps_decay)
+                epsilon = eps_end + (eps_start - eps_end) * np.exp(-1. * global_steps / eps_decay)
                 
 
                 if np.random.random() < epsilon:
                     # print("Exploring..")
-                    discrete_action = np.random.randint(0, 15)
+                    discrete_action = np.random.randint(0, self.q_network.action_space_dim-1)
                     
                 
                 # otherwise at = maxaQA(s, a)
@@ -162,7 +166,7 @@ class TrainDQN:
                     current_q_values = self.q_network(states, self.device).gather(1, actions.view(-1, 1).type(torch.int64).to(self.device)).squeeze()
 
                     loss = loss_fcn(current_q_values.squeeze(), expected_q_values.squeeze())
-                    
+                    episode_loss += loss.item()
                     optimizer.zero_grad()
                     loss.backward()
                     optimizer.step()
@@ -176,9 +180,10 @@ class TrainDQN:
 
             reward_collection.append(episode_reward)
             eps_collection.append(epsilon)
+            loss_collection.append(episode_loss)
             global_steps += step
 
-            print(f"episode: {i_episode}, global_steps: {global_steps}, episode_reward: {episode_reward}, eps: {round(epsilon, 5)} ")
+            print(f"episode: {i_episode}, global_steps: {global_steps}, episode_reward: {episode_reward}, loss {episode_loss}, eps: {epsilon}")
             self.save_model(i_episode, episode_reward, args)
             #---------------------------------------        
 
@@ -204,13 +209,22 @@ if __name__ == "__main__":
     except TimeoutException as e:
         print("You ran out of time and your training is stopped!")
 
-    mv_avg = moving_average(reward_collection, 20)
+    mv_avg_r = moving_average(reward_collection, 20)
+    mv_avg_l = moving_average(loss_collection, 20)
+    fig, ax = plt.subplots(2)
 
-    plt.plot(reward_collection, "r--", label="episode rewards")
-    plt.plot(mv_avg, "b-", label="moving_average")
-    plt.plot(eps_collection, label="epison")
-    plt.legend()
-    plt.xlabel("Episode")
-    plt.ylabel("Reward")
+
+    ax[0].plot(reward_collection, "r--", label="episode rewards")
+    ax[0].plot(mv_avg_r, "b-", label="moving average reward")
+    ax[1].plot(eps_collection, label="epison")
+    ax[1].plot(loss_collection, label="episode loss") 
+    
+    ax[0].set_xlabel("Episode")
+    ax[1].set_xlabel("Episode")
+    ax[0].set_ylabel("Reward")
+    ax[1].set_ylabel("Loss")
+    ax[0].legend()
+    ax[1].legend()
+    
     plt.show()
     
