@@ -81,10 +81,10 @@ class TrainDQN:
         #--------- YOUR CODE HERE --------------
         
         
-        lr = 0.0001 #args.learning_rate0.007
+        lr = 0.0002 #args.learning_rate0.007
         optimizer = optim.Adam(self.q_network.parameters(), lr=lr)
         
-        loss_fcn = nn.MSELoss()
+        loss_fcn = nn.SmoothL1Loss()
         N = 10000
         replay_buffer = ReplayBuffer(N)
         
@@ -93,7 +93,7 @@ class TrainDQN:
         # self.t_network.eval()        
 
         gamma = 0.9
-        num_episodes = 10000
+        num_episodes = 814
         batch_size = 128
         epsilon = 0.015
         num_steps = 500
@@ -184,6 +184,8 @@ class TrainDQN:
             global_steps += step
 
             print(f"episode: {i_episode}, global_steps: {global_steps}, episode_reward: {episode_reward}, loss {episode_loss}, eps: {epsilon}")
+            
+
             self.save_model(i_episode, episode_reward, args)
             #---------------------------------------        
 

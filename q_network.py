@@ -12,7 +12,7 @@ class QNetwork(nn.Module):
         super(QNetwork, self).__init__()
         #--------- YOUR CODE HERE --------------#  [q1, q2, qdot1, qdot2, xgoal, ygoal]
         
-        self.step = 0.3
+        self.step = 0.75
         self.action_space = {
             
             0: np.array([-0.5 * self.step, -1  * self.step]),
