@@ -12,7 +12,7 @@ class QNetwork(nn.Module):
         super(QNetwork, self).__init__()
         #--------- YOUR CODE HERE --------------#  [q1, q2, qdot1, qdot2, xgoal, ygoal]
         
-        self.step = 0.2
+        self.step = 0.3
         self.action_space = {
             
             0: np.array([-0.5 * self.step, -1  * self.step]),
@@ -21,7 +21,7 @@ class QNetwork(nn.Module):
             3: np.array([-0.5 * self.step, 0.5 * self.step]),
             4: np.array([-0.5 * self.step,  1  * self.step]),
 
-            5: np.array([-2 * self.step, -1  * self.step]),
+            5: np.array([-2 * self.step, -1 * self.step]),
             6: np.array([-2 * self.step, -0.5 * self.step]),
             7: np.array([-2 * self.step,  0  * self.step]),
             8: np.array([-2 * self.step, 0.5 * self.step]),
@@ -77,16 +77,13 @@ class QNetwork(nn.Module):
         print("input dim: ", input_dim)
 
         self.layers = nn.Sequential(
-            nn.Linear(input_dim, 128),
-            
+            nn.Linear(input_dim, 256),
+            nn.ReLU(),
+            nn.Linear(256, 128),
             nn.ReLU(),
             nn.Linear(128, 64),
-            
             nn.ReLU(),
-            # nn.Linear(64, 64),
-            # nn.ReLU(),
             nn.Linear(64, output_dim),
-            # nn.Tanh()
         )
         self.env = env
 
