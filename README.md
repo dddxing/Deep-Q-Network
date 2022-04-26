@@ -1,3 +1,3 @@
 # Deep-Q-Network
 
-![](project4.gif){loop=""}
+![](project4.gif)
