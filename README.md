@@ -1,4 +1,4 @@
 # Deep-Q-Network
 
 ![](project4.gif)
-![](learning curve_final_.png)
+![](learning_curve_final_.png)
